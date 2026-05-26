@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заявки — админ</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 1.5rem; background: #f5f5f5; color: #222; }
+        h1 { font-size: 1.35rem; }
+        table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        th, td { border: 1px solid #ddd; padding: 0.5rem 0.6rem; text-align: left; vertical-align: top; font-size: 0.9rem; }
+        th { background: #eee; }
+        th a { color: #0b57d0; text-decoration: none; }
+        th a:hover { text-decoration: underline; }
+        .filter-bar { margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+        .filter-bar select, .filter-bar button { padding: 0.35rem 0.5rem; }
+        .contacts { font-size: 0.85rem; color: #444; }
+        .desc-preview { max-width: 18rem; white-space: pre-wrap; word-break: break-word; }
+        form.inline-status { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+        form.inline-status button { padding: 0.25rem 0.5rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+{% macro sort_link(field, title) -%}
+  {%- set next_dir = 'desc' if sort != field else ('asc' if dir == 'desc' else 'desc') -%}
+  <a href="/admin?sort={{ field }}&dir={{ next_dir }}{% if filter_status %}&status={{ filter_status }}{% endif %}">{{ title }}{% if sort == field %} {% if dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a>
+{%- endmacro %}
+
+    <h1>Заявки</h1>
+
+    <form class="filter-bar" method="get" action="/admin">
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <input type="hidden" name="dir" value="{{ dir }}">
+        <label>
+            Статус:
+            <select name="status">
+                <option value="" {% if not filter_status %}selected{% endif %}>Все</option>
+                {% for code, label in status_labels.items() %}
+                <option value="{{ code }}" {% if filter_status == code %}selected{% endif %}>{{ label }} ({{ code }})</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit">Показать</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>{{ sort_link('id', 'ID') }}</th>
+                <th>{{ sort_link('created_at', 'Создана') }}</th>
+                <th>Имя</th>
+                <th>{{ sort_link('work_type', 'Тип работ') }}</th>
+                <th>Описание</th>
+                <th>Контакты</th>
+                <th>{{ sort_link('status', 'Статус') }}</th>
+                <th>{{ sort_link('updated_at', 'Обновлена') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td>{{ o.id }}</td>
+                <td>{{ o.created_at.strftime('%Y-%m-%d %H:%M') if o.created_at else '—' }}</td>
+                <td>{{ o.name }}</td>
+                <td>{{ o.work_type }}</td>
+                <td class="desc-preview">{{ o.description }}</td>
+                <td class="contacts">
+                    {% for c in o.contacts %}
+                        {% if c.type == 'phone' %}📱 Телефон{% elif c.type == 'email' %}📧 Email{% else %}{{ c.type }}{% endif %}: {{ c.value }}<br>
+                    {% else %}
+                        —
+                    {% endfor %}
+                </td>
+                <td>
+                    <form class="inline-status" method="post" action="/admin/order/{{ o.id }}/status">
+                        <input type="hidden" name="sort" value="{{ sort }}">
+                        <input type="hidden" name="dir" value="{{ dir }}">
+                        <input type="hidden" name="filter_status" value="{{ filter_status }}">
+                        <select name="new_status">
+                            {% for code, label in status_labels.items() %}
+                            <option value="{{ code }}" {% if o.status == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                            {% if o.status not in status_labels %}
+                            <option value="{{ o.status }}" selected>{{ o.status }} (текущий)</option>
+                            {% endif %}
+                        </select>
+                        <button type="submit">OK</button>
+                    </form>
+                </td>
+                <td>{{ o.updated_at.strftime('%Y-%m-%d %H:%M') if o.updated_at else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8">Нет заявок по выбранному фильтру.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
